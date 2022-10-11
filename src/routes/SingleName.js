@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery } from '@apollo/client'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 
 import { validateName, parseSearchTerm } from '../utils/utils'
 import { useScrollTo } from '../components/hooks'
@@ -8,10 +8,7 @@ import { GET_SINGLE_NAME } from '../graphql/queries'
 import Loader from '../components/Loader'
 import SearchErrors from '../components/SearchErrors/SearchErrors'
 import Name from '../components/SingleName/Name'
-import {
-  NonMainPageBannerContainerWithMarginBottom,
-  DAOBannerContent
-} from '../components/Banner/DAOBanner'
+import { useHistory } from 'react-router'
 
 const SINGLE_NAME = gql`
   query singleNameQuery @client {
@@ -26,6 +23,7 @@ function SingleName({
   },
   location: { pathname }
 }) {
+  const history = useHistory()
   useScrollTo(0)
 
   const [valid, setValid] = useState(undefined)
@@ -50,6 +48,8 @@ function SingleName({
       try {
         // This is under the assumption that validateName never returns false
         normalisedName = validateName(searchTerm)
+        if (normalisedName !== searchTerm)
+          history.replace(`/name/${normalisedName}`)
         setNormalisedName(normalisedName)
         document.title = searchTermsearchTerm
       } catch {
@@ -78,18 +78,13 @@ function SingleName({
     if (error) return <div>{(console.log(error), JSON.stringify(error))}</div>
     if (data?.singleName)
       return (
-        <>
-          {/*<NonMainPageBannerContainerWithMarginBottom>
-            <DAOBannerContent />
-          </NonMainPageBannerContainerWithMarginBottom>*/}
-          <Name
-            details={data.singleName}
-            name={name}
-            pathname={pathname}
-            type={type}
-            refetch={refetch}
-          />
-        </>
+        <Name
+          details={data.singleName}
+          name={name}
+          pathname={pathname}
+          type={type}
+          refetch={refetch}
+        />
       )
   }
 

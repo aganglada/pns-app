@@ -1,11 +1,14 @@
-import { getAccounts, getNetwork, getNetworkId } from '@pnsdomains/ui'
-
-import { isReadOnly } from '@pnsdomains/ui/src/web3'
-
-import { setup } from './apollo/mutations/ens'
+import {
+  getAccounts,
+  getNetwork,
+  getNetworkId,
+  isReadOnly
+} from '@ensdomains/ui'
 import { connect } from './api/web3modal'
+import { setup } from './apollo/mutations/ens'
 import {
   accountsReactive,
+  delegatesReactive,
   favouritesReactive,
   globalErrorReactive,
   isAppReadyReactive,
@@ -16,8 +19,9 @@ import {
   subDomainFavouritesReactive,
   web3ProviderReactive
 } from './apollo/reactiveVars'
-import { setupAnalytics } from './utils/analytics'
 import { getReverseRecord } from './apollo/sideEffects'
+import { rpcUrl } from './rpcUrl'
+import { setupAnalytics } from './utils/analytics'
 import { safeInfo, setupSafeApp } from './utils/safeApps'
 
 export const setFavourites = () => {
@@ -41,6 +45,22 @@ export const isSupportedNetwork = networkId => {
     default:
       return false
   }
+}
+
+const handleUnsupportedNetwork = (provider = window.ethereum) => {
+  if (provider) {
+    provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x1' }]
+    })
+    provider.on('chainChanged', function(networkId) {
+      window.location.reload()
+    })
+  }
+  globalErrorReactive({
+    ...globalErrorReactive(),
+    network: 'Unsupported Network'
+  })
 }
 
 export const getProvider = async reconnect => {
@@ -84,6 +104,7 @@ export const getProvider = async reconnect => {
     }
 
     const { providerObject } = await setup({
+      customProvider: rpcUrl,
       reloadOnAccountsChange: false,
       enforceReadOnly: true,
       enforceReload: false
@@ -91,14 +112,15 @@ export const getProvider = async reconnect => {
     provider = providerObject
     return provider
   } catch (e) {
-    if (e.message.match(/Unsupported network/)) {
-      globalErrorReactive('Unsupported Network')
+    if (e.error && e.error.message.match(/Unsupported network/)) {
+      handleUnsupportedNetwork(e.provider)
       return
     }
   }
 
   try {
     const { providerObject } = await setup({
+      customProvider: rpcUrl,
       reloadOnAccountsChange: false,
       enforceReadOnly: true,
       enforceReload: false
@@ -116,16 +138,24 @@ export const setWeb3Provider = async provider => {
   const accounts = await getAccounts()
 
   if (provider) {
-    provider.removeAllListeners()
+    if (provider.events?.removeAllListeners)
+      provider.events.removeAllListeners()
     accountsReactive(accounts)
   }
 
   provider?.on('chainChanged', async _chainId => {
     const networkId = await getNetworkId()
     if (!isSupportedNetwork(networkId)) {
-      globalErrorReactive('Unsupported Network')
+      handleUnsupportedNetwork(provider)
       return
     }
+
+    await setup({
+      customProvider: provider,
+      reloadOnAccountsChange: false,
+      enforceReload: true
+    })
+
     networkIdReactive(networkId)
     networkReactive(await getNetwork())
   })
@@ -148,7 +178,7 @@ export default async reconnect => {
     const networkId = await getNetworkId()
 
     if (!isSupportedNetwork(networkId)) {
-      globalErrorReactive('Unsupported Network')
+      handleUnsupportedNetwork(provider)
       return
     }
 
@@ -159,6 +189,7 @@ export default async reconnect => {
 
     if (accountsReactive?.[0]) {
       reverseRecordReactive(await getReverseRecord(accountsReactive?.[0]))
+      delegatesReactive(await getShouldDelegate(accountsReactive?.[0]))
     }
 
     isReadOnlyReactive(isReadOnly())

@@ -1,6 +1,5 @@
 import subDomainRegistrarContract from './contracts/subDomainRegistrarContract.json'
-import { getProvider } from '@pnsdomains/ui'
-import { Contract, utils } from 'ethers'
+import { getProvider, ethers } from '@pnsdomains/ui'
 import domains from '../constants/domains.json'
 
 let subDomainRegistrars = {}
@@ -10,7 +9,11 @@ const defaultAddress = '0xa05E4DCC5eaf37fE060F932698BaeE13C4d213ac'
 const getSubDomainRegistrar = async address => {
   const provider = await getProvider()
   function instantiateContract(address) {
-    const contract = new Contract(address, subDomainRegistrarContract, provider)
+    const contract = new ethers.Contract(
+      address,
+      subDomainRegistrarContract,
+      provider
+    )
     subDomainRegistrars[address] = contract
     return contract
   }
@@ -41,7 +44,7 @@ export const query = async (domain, label, address = defaultAddress) => {
     referralFeePPM,
     rent
   } = await Registrar.query(
-    utils.solidityKeccak256(['string'], [domain]),
+    ethers.utils.solidityKeccak256(['string'], [domain]),
     label
   )
 

@@ -1,8 +1,9 @@
 import { encodeContenthash, isValidContenthash } from '@pnsdomains/ui'
-import { addressUtils } from 'utils/utils'
+import { addressUtils, supportedAvatarProtocols } from 'utils/utils'
 import { formatsByName } from '@ensdomains/address-encoder'
+import validateTokenURI from 'api/avatar'
 
-export function validateRecord({ key, value, contractFn }) {
+export function validateRecord({ key, value, contractFn, addr }) {
   if (!value) return true
   switch (contractFn) {
     case 'setContenthash':
@@ -14,11 +15,20 @@ export function validateRecord({ key, value, contractFn }) {
         return false
       }
     case 'setText':
+      if (key !== 'avatar') return true
+      const protocol = supportedAvatarProtocols.find(proto =>
+        value.startsWith(proto)
+      )
+      if (!protocol) return false
+      if (protocol === 'eip155') return validateTokenURI(value, addr)
       return true
     case 'setAddr(bytes32,uint256,bytes)':
       if (value === '') return false
       if (key === 'ETH') {
         return addressUtils.isAddress(value)
+      }
+      if (key.match(/_LEGACY/)) {
+        return false
       }
       try {
         formatsByName[key].decoder(value)
@@ -44,6 +54,20 @@ export function getPlaceholder(recordType, contentType) {
     default:
       return ''
   }
+}
+
+export const trimRecord = (key, value) => {
+  const untrimmedRecordTypes = [
+    'description',
+    'notice',
+    'keywords',
+    'name',
+    'location'
+  ]
+  if (untrimmedRecordTypes.every(type => type !== key)) {
+    return value.trim()
+  }
+  return value
 }
 
 export const EMPTY_ADDRESS = '0x0000000000000000000000000000000000000000'

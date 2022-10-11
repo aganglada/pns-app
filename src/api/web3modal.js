@@ -1,3 +1,4 @@
+import { getNetwork, getNetworkId, isReadOnly } from '@ensdomains/ui'
 import { setup as setupENS } from '../apollo/mutations/ens'
 import {
   isReadOnlyReactive,
@@ -5,12 +6,7 @@ import {
   networkReactive,
   web3ProviderReactive
 } from '../apollo/reactiveVars'
-import { getNetwork, getNetworkId, isReadOnly } from '@pnsdomains/ui'
-
-const INFURA_ID =
-  window.location.host === 'app.pulse.domains'
-    ? '90f210707d3c450f847659dc9a3436ea'
-    : null
+import { rpcUrl } from '../rpcUrl'
 
 const PORTIS_ID = '57e5d6ca-e408-4925-99c4-e7da3bdb8bf5'
 
@@ -20,26 +16,28 @@ const option = {
   cacheProvider: true, // optional
   providerOptions: {
     walletconnect: {
-      package: () => import('@walletconnect/web3-provider'),
+      package: () => import('@walletconnect/ethereum-provider'),
       packageFactory: true,
       options: {
-        infuraId: INFURA_ID
+        rpc: {
+          1: rpcUrl
+        }
       }
     },
     walletlink: {
       package: () => import('walletlink'),
       packageFactory: true,
       options: {
-        appName: 'Pulsechain name service',
-        jsonRpcUrl: `https://mainnet.infura.io/v3/${INFURA_ID}`
+        appName: 'Ethereum name service',
+        jsonRpcUrl: rpcUrl
       }
     },
     mewconnect: {
       package: () => import('@myetherwallet/mewconnect-web-client'),
       packageFactory: true,
       options: {
-        infuraId: INFURA_ID,
-        description: ' '
+        rpc: rpcUrl,
+        description: ''
       }
     },
     portis: {
@@ -72,7 +70,7 @@ export const connect = async () => {
     return provider
   } catch (e) {
     if (e !== 'Modal closed by user') {
-      throw e
+      throw { error: e, provider: provider }
     }
   }
 }
@@ -87,6 +85,7 @@ export const disconnect = async function() {
     provider.disconnect()
   }
   await setupENS({
+    customProvider: rpcUrl,
     reloadOnAccountsChange: false,
     enforceReadOnly: true,
     enforceReload: false

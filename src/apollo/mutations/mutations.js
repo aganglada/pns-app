@@ -7,8 +7,10 @@ import {
   isRunningAsSafeAppReactive,
   favouritesReactive,
   subDomainFavouritesReactive,
-  web3ProviderReactive
+  web3ProviderReactive,
+  delegatesReactive
 } from '../reactiveVars'
+import getShouldDelegate from '../../api/delegate'
 import { getAccounts, getNetwork, getNetworkId } from '@pnsdomains/ui'
 import { disconnect, connect } from '../../api/web3modal'
 import { getReverseRecord } from '../sideEffects'
@@ -20,7 +22,8 @@ export const setWeb3ProviderLocalMutation = async provider => {
   const accounts = await getAccounts()
 
   if (provider) {
-    provider.removeAllListeners()
+    if (provider.events?.removeAllListeners)
+      provider.events.removeAllListeners()
     setAccountsLocalMutation(accounts)
   }
 
@@ -66,6 +69,7 @@ export const connectMutation = async address => {
     networkIdReactive(await getNetworkId())
     isReadOnlyReactive(false)
     reverseRecordReactive(await getReverseRecord(address))
+    delegatesReactive(await getShouldDelegate(address))
   }
 }
 

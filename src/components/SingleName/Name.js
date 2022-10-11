@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import styled from '@emotion/styled/macro'
 import { useTranslation } from 'react-i18next'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 import { useQuery } from '@apollo/client'
 
 import { useMediaMin } from 'mediaQuery'
@@ -16,6 +16,13 @@ import Tabs from './Tabs'
 import NameContainer from '../Basic/MainContainer'
 import Copy from '../CopyToClipboard/'
 import { isOwnerOfParentDomain } from '../../utils/utils'
+import {
+  DAOBannerContent,
+  NonMainPageBannerContainerWithMarginBottom
+} from '../Banner/DAOBanner'
+import NameWrapperBanner from '../Banner/NameWrapperBanner'
+import NameWrapperJSON from '@ensdomains/ens-contracts/artifacts/contracts/wrapper/NameWrapper.sol/NameWrapper.json'
+import { ethers, getNamehash, getProvider } from '@ensdomains/ui'
 
 const Owner = styled('div')`
   color: #ccd4da;
@@ -29,8 +36,8 @@ const RightBar = styled('div')`
 
 const Favourite = styled(DefaultFavourite)``
 
-function isRegistrationOpen(available, parent, isDeedOwner) {
-  return parent === 'pls' && !isDeedOwner && available
+function isRegistrationOpen(available, parent) {
+  return parent === 'pls' && available
 }
 
 function isDNSRegistrationOpen(domain) {
@@ -48,28 +55,58 @@ function isOwnerOfDomain(domain, account) {
   return false
 }
 
+const useNameWrapperVariables = (domain, account) => {
+  const nameWrapperAddress = process.env.REACT_APP_NAME_WRAPPER_ADDRESS
+
+  const isNameWrapped = domain.owner === nameWrapperAddress
+  const [isNameWrappedOwner, setIsNameWrappedOwner] = useState(false)
+
+  const domainName = domain?.name
+  const queryNameWrapper = useCallback(async () => {
+    const provider = await getProvider()
+    const nameWrapperAddress = process.env.REACT_APP_NAME_WRAPPER_ADDRESS
+    const nameWrapperContract = new ethers.Contract(
+      nameWrapperAddress,
+      NameWrapperJSON.abi,
+      provider
+    )
+    const owner = await nameWrapperContract.ownerOf(getNamehash(domainName))
+    setIsNameWrappedOwner(owner === account)
+  }, [setIsNameWrappedOwner, domainName])
+
+  const shouldRun = nameWrapperAddress && domainName
+
+  useEffect(() => {
+    shouldRun && queryNameWrapper()
+  }, [shouldRun])
+
+  return { isNameWrapped, isNameWrappedOwner }
+}
+
 const NAME_REGISTER_DATA_WRAPPER = gql`
   query nameRegisterDataWrapper @client {
     accounts
     networkId
+    isReadOnly
   }
 `
 
 export const useRefreshComponent = () => {
   const [key, setKey] = useState(0)
   const {
-    data: { accounts, networkId }
+    data: { accounts, networkId, isReadOnly }
   } = useQuery(NAME_REGISTER_DATA_WRAPPER)
   const mainAccount = accounts?.[0]
   useEffect(() => {
     setKey(x => x + 1)
-  }, [mainAccount, networkId])
+  }, [mainAccount, networkId, isReadOnly])
   return key
 }
 
-const NAME_QUERY = gql`
-  query nameQuery {
-    accounts @client
+const ACCOUNT_CONNECTED_QUERY = gql`
+  query nameQuery @client {
+    accounts
+    isReadOnly
   }
 `
 
@@ -79,8 +116,8 @@ function Name({ details: domain, name, pathname, type, refetch }) {
   const percentDone = 0
 
   const {
-    data: { accounts }
-  } = useQuery(NAME_QUERY)
+    data: { accounts, isReadOnly }
+  } = useQuery(ACCOUNT_CONNECTED_QUERY)
 
   const account = accounts?.[0]
   const isOwner = isOwnerOfDomain(domain, account)
@@ -88,11 +125,7 @@ function Name({ details: domain, name, pathname, type, refetch }) {
   const isDeedOwner = domain.deedOwner === account
   const isRegistrant = !domain.available && domain.registrant === account
 
-  const registrationOpen = isRegistrationOpen(
-    domain.available,
-    domain.parent,
-    isDeedOwner
-  )
+  const registrationOpen = isRegistrationOpen(domain.available, domain.parent)
   const preferredTab = registrationOpen ? 'register' : 'details'
 
   let ownerType,
@@ -111,81 +144,101 @@ function Name({ details: domain, name, pathname, type, refetch }) {
 
   const key = useRefreshComponent()
 
+  // Name Wrapper
+  const { isNameWrapped, isNameWrappedOwner } = useNameWrapperVariables(
+    domain,
+    account
+  )
+  const isAcceptedStage = ['local', 'dev'].includes(process.env.REACT_APP_STAGE)
+  const isOwnerOrNameWrappedOwner = isOwner || isNameWrappedOwner
+  const showNameWrapperBanner = isOwnerOrNameWrappedOwner && isAcceptedStage
+
   return (
-    <NameContainer state={containerState} key={key}>
-      <TopBar percentDone={percentDone}>
-        <Title>
-          {domain?.decrypted
-            ? name
-            : '[unknown' +
-              domain.name?.split('.')[0].slice(1, 11) +
-              ']' +
-              '.' +
-              domain.parent}
-          <Copy
-            value={
-              domain?.decrypted
-                ? name
-                : '[unknown' +
-                  domain.name?.split('.')[0].slice(1, 11) +
-                  ']' +
-                  '.' +
-                  domain.parent
-            }
-          />
-        </Title>
-        <RightBar>
-          {!!ownerType && (
-            <Owner data-testid="owner-type">
-              {ownerType === 'Registrant'
-                ? t('c.registrant')
-                : t('c.Controller')}
-            </Owner>
-          )}
-          <Favourite domain={domain} />
-          {smallBP && (
-            <Tabs
-              pathname={pathname}
-              tab={preferredTab}
-              domain={domain}
-              parent={domain.parent}
+    <>
+      <NonMainPageBannerContainerWithMarginBottom>
+        {showNameWrapperBanner ? (
+          <NameWrapperBanner isWrapped={isNameWrapped} />
+        ) : (
+          <DAOBannerContent />
+        )}
+      </NonMainPageBannerContainerWithMarginBottom>
+      <NameContainer state={containerState} key={key}>
+        <TopBar percentDone={percentDone}>
+          <Title>
+            {domain?.decrypted
+              ? name
+              : '[unknown' +
+                domain.name?.split('.')[0].slice(1, 11) +
+                ']' +
+                '.' +
+                domain.parent}
+            <Copy
+              value={
+                domain?.decrypted
+                  ? name
+                  : '[unknown' +
+                    domain.name?.split('.')[0].slice(1, 11) +
+                    ']' +
+                    '.' +
+                    domain.parent
+              }
             />
-          )}
-        </RightBar>
-      </TopBar>
-      {!smallBP && (
-        <Tabs
-          pathname={pathname}
-          tab={preferredTab}
-          domain={domain}
-          parent={domain.parent}
-        />
-      )}
-      {isDNSRegistrationOpen(domain) ? (
-        <DNSNameRegister
-          domain={domain}
-          registrarAddress={registrarAddress}
-          pathname={pathname}
-          refetch={refetch}
-          account={account}
-          readOnly={account === EMPTY_ADDRESS}
-        />
-      ) : type === 'short' && domain.owner === EMPTY_ADDRESS ? ( // check it's short and hasn't been claimed already
-        <ShortName name={name} />
-      ) : (
-        <NameDetails
-          tab={preferredTab}
-          domain={domain}
-          pathname={pathname}
-          name={name}
-          isOwner={isOwner}
-          isOwnerOfParent={isOwnerOfParent}
-          refetch={refetch}
-          account={account}
-          registrationOpen={registrationOpen}
-        />
-      )}
-    </NameContainer>
+          </Title>
+          <RightBar>
+            {!!ownerType && (
+              <Owner data-testid="owner-type">
+                {ownerType === 'Registrant'
+                  ? t('c.registrant')
+                  : t('c.Controller')}
+              </Owner>
+            )}
+            <Favourite domain={domain} />
+            {smallBP && (
+              <Tabs
+                pathname={pathname}
+                tab={preferredTab}
+                domain={domain}
+                parent={domain.parent}
+              />
+            )}
+          </RightBar>
+        </TopBar>
+        {!smallBP && (
+          <Tabs
+            pathname={pathname}
+            tab={preferredTab}
+            domain={domain}
+            parent={domain.parent}
+          />
+        )}
+        {isDNSRegistrationOpen(domain) ? (
+          <DNSNameRegister
+            domain={domain}
+            registrarAddress={registrarAddress}
+            pathname={pathname}
+            refetch={refetch}
+            account={account}
+            readOnly={isNameWrapped || account === EMPTY_ADDRESS}
+          />
+        ) : type === 'short' && domain.owner === EMPTY_ADDRESS ? ( // check it's short and hasn't been claimed already
+          <ShortName name={name} />
+        ) : (
+          <NameDetails
+            tab={preferredTab}
+            domain={domain}
+            pathname={pathname}
+            name={name}
+            isOwner={isOwner}
+            isOwnerOfParent={isOwnerOfParent}
+            refetch={refetch}
+            account={account}
+            registrationOpen={registrationOpen}
+            isNameWrapped={isNameWrapped}
+            isReadOnly={isReadOnly}
+          />
+        )}
+      </NameContainer>
+    </>
   )
 }
 

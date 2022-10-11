@@ -1,7 +1,7 @@
 import React from 'react'
 import styled from '@emotion/styled/macro'
 import { useTranslation } from 'react-i18next'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 import mq from 'mediaQuery'
 import { useQuery, useMutation } from '@apollo/client'
 
@@ -85,12 +85,10 @@ const AccountContainer = styled('div')`
     transform: translate(-25px, 5px);
     width: 225px;
     &:hover {
-      width: 236px;
       background: white;
       box-shadow: -4px 18px 70px 0 rgba(108, 143, 167, 0.32);
       border-radius: 6px;
       .account {
-        width: 200px;
         overflow: visible;
         white-space: normal;
       }
@@ -136,7 +134,7 @@ function NetworkInformation() {
               src={imageUrl(getReverseRecord.avatar, displayName, network)}
             />
           ) : (
-            <Blockies address={accounts[0]} imageSize={47} />
+            <Blockies address={accounts[0]} imageSize={45} />
           )}
           <Account data-testid="account" className="account">
             <span>

@@ -11,10 +11,7 @@
     },
     "renew": {
       "button": "Gia hạn đã chọn",
-      "confirm": [
-        "Những tên miền sau:",
-        "sẽ được gia hạn cho"
-      ],
+      "confirm": ["Những tên miền sau:", "sẽ được gia hạn cho"],
       "confirmButton": "Gia hạn",
       "year": "{{count}} năm"
     },
@@ -76,12 +73,7 @@
     "notmigrated": "Chưa Được Chuyển Đổi"
   },
   "dns": {
-    "breadcrumbs": [
-      "MỞ  DNSSEC",
-      "THÊM TEXT ",
-      "GỬI CHỨNG CỨ",
-      "QUẢN LÝ TÊN"
-    ],
+    "breadcrumbs": ["MỞ  DNSSEC", "THÊM TEXT ", "GỬI CHỨNG CỨ", "QUẢN LÝ TÊN"],
     "dnsowner": "Chủ của DNS",
     "steps": {
       "addtext": {
@@ -123,8 +115,7 @@
     "subdomainFavouriteTitle": "Tên miền con ưa thích"
   },
   "home": {
-    "announcements": {
-    },
+    "announcements": {},
     "howtouse": {
       "body": "PNS App là một giao diện cho người dùng không rành về kỹ thuật . Cho phép bạn tìm bất cứ tên nào, quản lý địa chỉ, tính năng và tạo tên miền con của mỗi tên.",
       "title": "Cách dùng  PNS "
@@ -187,11 +178,12 @@
     "notify": "Nhắc tôi",
     "premium": {
       "dateDescription": "Date and time shown in local time zone",
-      "invalid": "Any number over 2k is invalid",
+      "invalid": "Any number over 100m is invalid",
       "title": "Premium"
     },
     "premiumWarning": {
-      "description": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $2,000 and reduces over 28 days until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
+      "description": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000 and reduces over 28 days until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
+      "exponentialWarningDescripiton": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000,000 and reduces over 21 days exponentially until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
       "title": "This name has a temporary premium."
     },
     "step1": {
@@ -342,7 +334,8 @@
     },
     "subdomains": {
       "add": "Thêm tên miền phụ",
-      "nosubdomains": "Không có tên miền nào được thêm vào"
+      "nosubdomains": "Không có tên miền nào được thêm vào",
+      "wildcard": "This domain may have other subdomains that cannot be shown as they are off chain"
     },
     "tabs": {
       "details": "Chi tiết",

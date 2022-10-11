@@ -11,10 +11,7 @@
     },
     "renew": {
       "button": "Odnowienie Wybrane",
-      "confirm": [
-        "Następujące nazwy:",
-        "zostaną odnowione"
-      ],
+      "confirm": ["Następujące nazwy:", "zostaną odnowione"],
       "confirmButton": "Odnów",
       "year_0": "{{count}} years",
       "year_1": "{{count}} years",
@@ -127,8 +124,7 @@
     "subdomainFavouriteTitle": "Ulubione Subdomeny"
   },
   "home": {
-    "announcements": {
-    },
+    "announcements": {},
     "howtouse": {
       "body": "Aplikacja PNS to graficzny interfejs użytkownika dla użytkowników nietechnicznych. Umożliwia wyszukiwanie dowolnej nazwy, zarządzanie jej adresami lub zasobami, na które wskazuje, i tworzenie subdomen dla każdej nazwy.",
       "title": "Jak używać PNS"
@@ -191,11 +187,12 @@
     "notify": "Powiadom Mnie",
     "premium": {
       "dateDescription": "Date and time shown in local time zone",
-      "invalid": "Any number over 2k is invalid",
+      "invalid": "Any number over 100m is invalid",
       "title": "Premium"
     },
     "premiumWarning": {
-      "description": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $2,000 and reduces over 28 days until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
+      "description": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000 and reduces over 28 days until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
+      "exponentialWarningDescripiton": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000,000 and reduces over 21 days exponentially until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
       "title": "This name has a temporary premium."
     },
     "step1": {
@@ -346,7 +343,8 @@
     },
     "subdomains": {
       "add": "Dodaj Subdomenę",
-      "nosubdomains": "Nie dodano Subdomen"
+      "nosubdomains": "Nie dodano Subdomen",
+      "wildcard": "This domain may have other subdomains that cannot be shown as they are off chain"
     },
     "tabs": {
       "details": "Szczegóły",

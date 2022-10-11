@@ -1,4 +1,4 @@
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 import { NodeFields, SubDomainStateFields } from './fragments'
 
 export const GET_PUBLIC_RESOLVER = gql`
@@ -194,10 +194,8 @@ export const GET_SUBDOMAIN_FAVOURITES = gql`
 `
 
 export const GET_ERRORS = gql`
-  query getErrors {
-    error {
-      message
-    }
+  query getErrors @client {
+    globalError
   }
 `
 
@@ -222,6 +220,7 @@ export const GET_REGISTRATIONS_SUBGRAPH = gql`
       ) {
         expiryDate
         domain {
+          id
           labelName
           labelhash
           name
@@ -273,12 +272,33 @@ export const GET_DOMAINS_SUBGRAPH = gql`
 
 /* Permanent Registrar */
 
+export const GET_ETH_PRICE = gql`
+  query getEthPrice {
+    getEthPrice
+  }
+`
+
+export const GET_PRICE_CURVE = gql`
+  query getPriceCurve {
+    getPriceCurve
+  }
+`
+
 export const GET_RENT_PRICE = gql`
   query getRentPrice($label: String, $duration: Number) {
     getRentPrice(label: $label, duration: $duration)
   }
 `
 
+export const GET_RENT_PRICE_AND_PREMIUM = gql`
+  query getRentPriceAndPremium(
+    $name: String
+    $expires: Number
+    $duration: Number
+  ) {
+    getRentPriceAndPremium(name: $name, expires: $expires, duration: $duration)
+  }
+`
 export const GET_RENT_PRICES = gql`
   query getRentPrices($labels: String, $duration: Number) {
     getRentPrices(labels: $labels, duration: $duration)
@@ -340,5 +360,11 @@ export const IS_MIGRATED = gql`
 export const IS_CONTRACT_CONTROLLER = gql`
   query isContractController($address: String) {
     isContractController(address: $address)
+  }
+`
+
+export const WILDCARD_RESOLVER_DOMAIN = gql`
+  query wildcardResolverDomain($name: String) {
+    wildcardResolverDomain(name: $name)
   }
 `

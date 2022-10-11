@@ -1,11 +1,6 @@
 import { setupENS } from '@pnsdomains/ui'
 import { isENSReadyReactive } from '../reactiveVars'
 
-const INFURA_ID =
-  window.location.host === 'app.pulse.domains'
-    ? '90f210707d3c450f847659dc9a3436ea'
-    : null
-
 let ens = {},
   registrar = {},
   ensRegistryAddress = undefined
@@ -23,9 +18,6 @@ export async function setup({
     enforceReload,
     customProvider,
     ensAddress
-  }
-  if (enforceReadOnly) {
-    option.infura = INFURA_ID
   }
   const {
     ens: ensInstance,

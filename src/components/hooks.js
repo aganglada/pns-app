@@ -1,9 +1,9 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { utils } from 'ethers'
-import getEtherPrice from 'api/price'
 import { loggedIn, logout } from './IPFS/auth'
-import { getBlock, getProvider } from '@pnsdomains/ui'
-import { isCID, networkName, supportedAvatarProtocols } from 'utils/utils'
+
+import { utils as avtUtils } from '@ensdomains/ens-avatar'
+import { getBlock, getProvider, ethers } from '@pnsdomains/ui'
+import { networkName, supportedAvatarProtocols } from 'utils/utils'
 
 export function useDocumentTitle(title) {
   useEffect(() => {
@@ -161,33 +161,6 @@ export function useInterval(callback, delay) {
   }, [delay])
 }
 
-export function useEthPrice(enabled = true) {
-  const [loading, setLoading] = useState(true)
-  const [price, setPrice] = useState(undefined)
-
-  useEffect(() => {
-    let hasExited = false
-    if (enabled) {
-      getEtherPrice()
-        .then(res => {
-          if (!hasExited) {
-            setPrice(res)
-            setLoading(false)
-          }
-        })
-        .catch(() => '') // ignore error
-    }
-    return () => {
-      hasExited = true
-    }
-  }, [enabled])
-
-  return {
-    loading,
-    price
-  }
-}
-
 export function useGasPrice(enabled = true) {
   const [loading, setLoading] = useState(true)
   const [price, setPrice] = useState({})
@@ -198,7 +171,7 @@ export function useGasPrice(enabled = true) {
         const provider = await getProvider()
         const blockDetails = await provider.getBlock('latest')
         if (blockDetails.baseFeePerGas) {
-          const baseFeeWei = utils.formatUnits(
+          const baseFeeWei = ethers.utils.formatUnits(
             blockDetails.baseFeePerGas,
             'wei'
           )
@@ -224,8 +197,6 @@ export function useGasPrice(enabled = true) {
   }
 }
 
-const IPFS_GATEWAY = 'https://ipfs.io/ipfs/'
-
 export function useAvatar(textKey, name, network, uri) {
   const [avatar, setAvatar] = useState({})
   useEffect(() => {
@@ -235,17 +206,10 @@ export function useAvatar(textKey, name, network, uri) {
         const result = await fetch(
           `https://metadata.pulse.domains/${_network}/avatar/${name}/meta`
         )
-        const data = await result.json()
-        if ('image' in data && data.image) {
-          if (data.image.startsWith('ipfs://')) {
-            data.image = data.image.replace('ipfs://', IPFS_GATEWAY)
-          } else if (data.image.startsWith('ipfs/')) {
-            data.image = data.image.replace('ipfs/', IPFS_GATEWAY)
-          } else if (isCID(data.image)) {
-            data.image = `${IPFS_GATEWAY}${data.image}`
-          }
-        }
-        setAvatar(data)
+        const metadata = await result.json()
+        const avatarURI = avtUtils.getImageURI({ metadata })
+        metadata.image = avatarURI
+        setAvatar(metadata)
       }
       if (textKey === 'avatar' && uri) {
         const _protocol = supportedAvatarProtocols.find(proto =>

@@ -11,10 +11,7 @@
     },
     "renew": {
       "button": "Rinnova Selezionati",
-      "confirm": [
-        "I seguenti domini:",
-        "saranno rinnovati per "
-      ],
+      "confirm": ["I seguenti domini:", "saranno rinnovati per "],
       "confirmButton": "Rinnova",
       "year": "{{count}} anni",
       "year_plural": "{{count}} anni"
@@ -78,12 +75,7 @@
     "notmigrated": "non migrato"
   },
   "dns": {
-    "breadcrumbs": [
-      "ENABLE DNSSEC",
-      "ADD TEXT",
-      "SUBMIT PROOF",
-      "MANAGE NAME"
-    ],
+    "breadcrumbs": ["ENABLE DNSSEC", "ADD TEXT", "SUBMIT PROOF", "MANAGE NAME"],
     "dnsowner": "Proprietario DNS",
     "steps": {
       "addtext": {
@@ -125,8 +117,7 @@
     "subdomainFavouriteTitle": "Sottodomini Preferiti"
   },
   "home": {
-    "announcements": {
-    },
+    "announcements": {},
     "howtouse": {
       "body": "L'applicazione PNS è un'interfaccia grafica per utenti non tecnici. Ti permette di cercare i nomi di dominio, gestire gli indirizzi o le risorse a cui puntano e di creare sottodomini per ogni nome.",
       "title": "Come usare PNS"
@@ -194,6 +185,7 @@
     },
     "premiumWarning": {
       "description": "Per garantire a tutti la giusta opportunità di registrare un dominio appena scaduto, questi domini hanno un sovrapprezzo che parte da $ 2.000 e che si riduce in 28 giorni fino ad azzerarsi. Inserisci l'importo che sei disposto a pagare come sovrapprezzo per sapere in quale data ritornare sull'app per registrare il nome.",
+      "exponentialWarningDescripiton": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000,000 and reduces over 21 days exponentially until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
       "title": "Questo nome di dominio ha un sovrapprezzo temporaneo."
     },
     "step1": {
@@ -344,7 +336,8 @@
     },
     "subdomains": {
       "add": "Aggiungi Sottodomini",
-      "nosubdomains": "Nessun Sottodominio è stato aggiunto"
+      "nosubdomains": "Nessun Sottodominio è stato aggiunto",
+      "wildcard": "This domain may have other subdomains that cannot be shown as they are off chain"
     },
     "tabs": {
       "details": "Dettagli",

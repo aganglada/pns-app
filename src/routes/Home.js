@@ -15,7 +15,7 @@ import HowToUseDefault from '../components/HowToUse/HowToUse'
 import PulseDomainsLogo from '../components/HomePage/images/pulse-domains-logo.png'
 import { aboutPageURL } from '../utils/utils'
 import { connectProvider, disconnectProvider } from '../utils/providerUtils'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 import {
   MainPageBannerContainer,
   DAOBannerContent
@@ -354,6 +354,7 @@ export default ({ match }) => {
             initial={animation.initial}
             animate={animation.animate}
             src={PulseDomainsLogo}
+            alt="PLS logo"
           />
           <PermanentRegistrarLogo
             initial={animation.initial}

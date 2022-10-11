@@ -2,6 +2,12 @@
 
 PNS Application
 
+# ⚠️ IMPORTANT NOTE TO CONTRIBUTORS ⚠️
+
+As work has begun on the next version of the ENS app, please do not submit PRs for
+issues marked 'redesign' or 'post-redesign'. We will soon have info on how to
+contribute to the new app. Thanks for all your hard work!
+
 ## Installation
 
 ### Manual
@@ -197,7 +203,7 @@ npx ganache-cli -b 1
 
 Install Docker: https://www.docker.com/get-started
 
-Next in the /graph-node/docker folder:
+in the `ens-app` folder:
 
 ```
 rm -rf data

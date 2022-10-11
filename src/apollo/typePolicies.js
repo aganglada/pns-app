@@ -9,7 +9,8 @@ import {
   favouritesReactive,
   globalErrorReactive,
   transactionHistoryReactive,
-  namesReactive
+  namesReactive,
+  delegatesReactive
 } from './reactiveVars'
 import { hasValidReverseRecord } from '../utils/utils'
 
@@ -50,7 +51,7 @@ export default {
           if (!addresss) return ''
           return hasValidReverseRecord(reverseRecordReactive())
             ? reverseRecordReactive().name
-            : `${addresss?.slice(0, 10)}...`
+            : `${addresss.slice(0, 5)}...${addresss.slice(-4)}`
         }
       },
       avatar: {
@@ -78,9 +79,19 @@ export default {
           return favouritesReactive()
         }
       },
+      shouldDelegate: {
+        read() {
+          return delegatesReactive()
+        }
+      },
       globalError: {
         read() {
-          return globalErrorReactive() || false
+          return (
+            globalErrorReactive() || {
+              network: null,
+              invalidCharacter: null
+            }
+          )
         }
       }
     }

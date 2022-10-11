@@ -8,12 +8,12 @@ import Heart from '../Icons/Heart'
 import File from '../Icons/File'
 import { aboutPageURL, hasNonAscii } from '../../utils/utils'
 import SpeechBubble from '../Icons/SpeechBubble'
-import Home from '../Icons/Home'
+import { ReactComponent as FaqIcon } from '../../assets/faqIcon.svg'
 
 import mq from 'mediaQuery'
 import { Link, withRouter } from 'react-router-dom'
 import gql from 'graphql-tag'
-import { isENSReady } from '../../apollo/reactiveVars'
+import Info from 'components/Icons/Info'
 
 const SideNavContainer = styled('nav')`
   display: ${p => (p.isMenuOpen ? 'block' : 'none')};
@@ -74,7 +74,7 @@ const NavLink = styled(Link)`
   `}
 
   &:visited {
-    color: #2829291;
+    color: #282929;
   }
 
   span {
@@ -112,7 +112,7 @@ const ThirdPartyLink = styled('a')`
   `}
 
   &:visited {
-    color: #2829291;
+    color: #282929;
   }
 
   span {
@@ -179,13 +179,13 @@ function SideNav({ match, isMenuOpen, toggleMenu }) {
             active={url === '/faq' ? 1 : 0}
             to="/faq"
           >
-            <SpeechBubble />
+            <FaqIcon />
             <span>{t('c.faq')}</span>
           </NavLink>
         </li>
         <li>
           <ThirdPartyLink href={aboutPageURL()}>
-            <Home />
+            <Info />
             <span>{t('c.about')}</span>
           </ThirdPartyLink>
         </li>

@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Query } from '@apollo/client/react/components'
 import {
   GET_SUBDOMAINS_FROM_SUBGRAPH,
-  GET_SUBDOMAINS
+  GET_SUBDOMAINS,
+  WILDCARD_RESOLVER_DOMAIN
 } from '../../graphql/queries'
 import Loader from '../Loader'
 import { H2 } from '../Typography/Basic'
@@ -12,6 +13,7 @@ import AddSubdomain from './AddSubdomain'
 import ChildDomainItem from '../DomainItem/ChildDomainItem'
 import { getNamehash } from '@pnsdomains/ui'
 import { decryptName } from '../../api/labels'
+import { useQuery } from '@apollo/client'
 
 const SubDomainsContainer = styled('div')`
   padding-bottom: 30px;
@@ -77,6 +79,7 @@ function SubDomainsFromWeb3({ domain, canAddSubdomain }) {
                   owner={d.owner}
                   labelhash={d.labelHash}
                   canDeleteSubdomain={canAddSubdomain}
+                  refetch={refetch}
                 />
               ))}
           </>
@@ -99,10 +102,21 @@ function SubDomains({
   isParentMigratedToNewRegistry,
   isMigratedToNewRegistry,
   loadingIsMigrated,
+  readOnly = false,
   ...rest
 }) {
   const { t } = useTranslation()
+  const { data: { wildcardResolverDomain } = {} } = useQuery(
+    WILDCARD_RESOLVER_DOMAIN,
+    {
+      variables: {
+        name: domain.name
+      }
+    }
+  )
+
   const canAddSubdomain =
+    !readOnly &&
     isOwner &&
     !loadingIsParentMigrated &&
     !loadingIsMigrated &&
@@ -147,6 +161,11 @@ function SubDomains({
                   <Loader withWrap large />
                 </>
               )
+            if (!!wildcardResolverDomain) {
+              return (
+                <SubDomainH2>{t('singleName.subdomains.wildcard')}</SubDomainH2>
+              )
+            }
             if (subdomains && subdomains.length === 0) {
               return (
                 <>
@@ -199,6 +218,7 @@ function SubDomains({
                       labelhash={d.labelHash}
                       isSubdomain={true}
                       canDeleteSubdomain={canAddSubdomain}
+                      refetch={refetch}
                     />
                   )
                 })}
@@ -207,7 +227,11 @@ function SubDomains({
           }}
         </Query>
       ) : (
-        <SubDomainH2>{t('singleName.subdomains.nosubdomains')}</SubDomainH2>
+        <SubDomainH2>
+          {wildcardResolverDomain
+            ? t('singleName.subdomains.wildcard')
+            : t('singleName.subdomains.nosubdomains')}
+        </SubDomainH2>
       )}
     </SubDomainsContainer>
   )

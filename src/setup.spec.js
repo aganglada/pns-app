@@ -94,10 +94,9 @@ describe('getProvider', () => {
       expect.assertions(1)
       window.localStorage.setItem('WEB3_CONNECT_CACHED_PROVIDER', 'injected')
       connect.mockImplementation(
-        () =>
-          new Promise(() => {
-            expect(true).toBeTruthy()
-          })
+        new Promise(() => {
+          expect(true).toBeTruthy()
+        })
       )
       getProvider()
     })
@@ -131,7 +130,7 @@ describe('getProvider', () => {
 
 describe('setWeb3Provider', () => {
   it('should update network id when network id changes', async () => {
-    expect.assertions(1)
+    expect.assertions(2)
     getNetworkId.mockImplementation(() => '2')
     getNetwork.mockImplementation(() => 'Main')
     const mockProvider = {
@@ -148,7 +147,8 @@ describe('setWeb3Provider', () => {
           cb()
         }
       },
-      removeAllListeners: () => null
+      events: null,
+      request: () => null
     }
     await setWeb3Provider(mockProvider)
   })
@@ -170,7 +170,8 @@ describe('setWeb3Provider', () => {
           cb()
         }
       },
-      removeAllListeners: () => null
+      events: null,
+      request: () => null
     }
     await setWeb3Provider(mockProvider)
   })
@@ -181,13 +182,14 @@ describe('setWeb3Provider', () => {
     const mockRemoveAllListeners = jest.fn()
     const mockProvider = {
       on: (event, callback) => {},
-      removeAllListeners: mockRemoveAllListeners
+      events: { removeAllListeners: mockRemoveAllListeners },
+      request: () => null
     }
     await setWeb3Provider(mockProvider)
     expect(mockRemoveAllListeners).toHaveBeenCalled()
   })
   it('should update network when network changes', async () => {
-    expect.assertions(1)
+    expect.assertions(2)
     getNetworkId.mockImplementation(() => 2)
     getNetwork.mockImplementation(() => 'Main')
     const mockProvider = {
@@ -204,12 +206,13 @@ describe('setWeb3Provider', () => {
           cb()
         }
       },
-      removeAllListeners: () => null
+      events: null,
+      request: () => null
     }
     await setWeb3Provider(mockProvider)
   })
   it('should set global error if chain is changed to an unsupported network', async () => {
-    expect.assertions(2)
+    expect.assertions(4)
     getNetworkId.mockImplementation(() => 2)
     getNetwork.mockImplementation(() => 'Main')
     const mockProvider = {
@@ -227,7 +230,8 @@ describe('setWeb3Provider', () => {
           cb()
         }
       },
-      removeAllListeners: () => null
+      events: null,
+      request: () => null
     }
     await setWeb3Provider(mockProvider)
   })
@@ -273,7 +277,10 @@ describe('setup', () => {
     jest.clearAllMocks()
     process.env.REACT_APP_STAGE = 'notlocal'
     connect.mockImplementation(() =>
-      Promise.reject(new Error('Unsupported network 124'))
+      Promise.reject({
+        error: new Error('Unsupported network 124'),
+        provider: undefined
+      })
     )
     expect(globalErrorReactive).not.toHaveBeenCalled()
     await getProvider(true)
@@ -283,7 +290,7 @@ describe('setup', () => {
   it('should allow setup to continue if network is supported', async () => {
     const mockProvider = {
       on: (event, callback) => {},
-      removeAllListeners: () => null
+      events: null
     }
     getNetworkId.mockImplementation(() => 1)
     getNetwork.mockImplementation(() => 'Main')

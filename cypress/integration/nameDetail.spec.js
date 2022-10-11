@@ -38,6 +38,11 @@ function refreshAndCheckText(url, textOrArrayOfText) {
 }
 
 describe('Name detail view', () => {
+  it('should redirect if searchTerm and normalized name does not match', () => {
+    cy.visit(`${NAME_ROOT}/%E2%80%8Btest.eth`)
+    cy.wait(10000)
+    cy.url().should('match', /\/test\.eth\/?/)
+  })
   it('can see list of top level domains from [root]', () => {
     cy.visit(`${NAME_ROOT}/[root]/subdomains`)
     cy.queryByTestId('eth', { timeout: 30000 }).should('exist')
@@ -96,6 +101,9 @@ describe('Name detail view', () => {
 
   it('can change the resolver to the public resolver', () => {
     cy.visit(`${NAME_ROOT}/superawesome.eth`)
+    cy.getByTestId('advanced-settings-button', { timeout: 10000 }).click({
+      force: true
+    })
     waitUntilInputResolves({ type: 'testId', value: 'edit-resolver' }).then(
       () => {
         cy.getByTestId('edit-resolver').click({ force: true })
@@ -136,6 +144,9 @@ describe('Name detail view', () => {
 
   it('cannot change the resolver to a non contract address', () => {
     cy.visit(`${NAME_ROOT}/superawesome.eth`)
+    cy.getByTestId('advanced-settings-button', { timeout: 10000 }).click({
+      force: true
+    })
     waitUntilInputResolves({ type: 'testId', value: 'edit-resolver' }).then(
       () => {
         cy.getByTestId('edit-resolver').click({ force: true })
@@ -234,7 +245,7 @@ describe('Name detail view', () => {
           force: true,
           timeout: 10000
         })
-        .waitUntilInputResolves('Save')
+        .waitUntilInputResolves('Save', 2000)
         .then(() => {
           cy.getByText('Save').click({ force: true })
         })
@@ -326,24 +337,34 @@ describe('Name detail view', () => {
       cy.wait(2000)
       // Address
       cy.getByTestId('ETH-record-input')
+        .wait(2000)
         .clear({ force: true })
         .type(ADDRESS, { force: true })
+        .wait(500)
         // Content
         .getByTestId('content-record-input')
         .clear({ force: true })
+        .wait(500)
         .type(CONTENT, { force: true })
+        .wait(500)
         // // Text
         .getByTestId('notice-record-input')
         .clear({ force: true })
+        .wait(500)
         .type(TEXT, { force: true })
+        .wait(500)
         // Other Text
         .getByTestId('com.twitter-record-input')
         .clear({ force: true })
+        .wait(500)
         .type(OTHER_TEXT, { force: true })
+        .wait(500)
         // Other Address
         .getByTestId('LTC-record-input', { timeout: 10000 })
         .clear({ force: true })
+        .wait(500)
         .type(OTHER_ADDRESS, { force: true })
+        .wait(500)
     })
 
     confirmRecordUpdate()
@@ -413,7 +434,7 @@ describe('Name detail view', () => {
   it('can add a subdomain', () => {
     const LABEL = 'sub1' // using the same subdomain label which is used at sub1.testing.eth
     cy.visit(`${NAME_ROOT}/subdomaindummy.eth/subdomains`, { timeout: 10000 })
-
+    cy.wait(5000)
     cy.getByTestId('addsubdomain', { exact: false, timeout: 10000 }).click({
       force: true
     })

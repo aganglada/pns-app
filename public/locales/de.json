@@ -11,10 +11,7 @@
     },
     "renew": {
       "button": "Ausgewählte verlängern",
-      "confirm": [
-        "Die folgenden Namen:",
-        "werden für "
-      ],
+      "confirm": ["Die folgenden Namen:", "werden für "],
       "confirmButton": "Verlängern",
       "year": "{{count}} Jahr verlängert",
       "year_plural": "{{count}} Jahre verlängert"
@@ -125,8 +122,7 @@
     "subdomainFavouriteTitle": "Favorisierte Subdomains"
   },
   "home": {
-    "announcements": {
-    },
+    "announcements": {},
     "howtouse": {
       "body": "Die PNS App ist eine grafische Oberfläche für nicht-technische Nutzer. Es ermöglicht Ihnen, Namen zu suchen, ihre Adressen oder Ressourcen, auf die verwiesen wird, zu verwalten und Subdomains für Namen zu erstellen.",
       "title": "Wie man PNS benutzt"
@@ -189,11 +185,12 @@
     "notify": "Benachrichtige mich",
     "premium": {
       "dateDescription": "Date and time shown in local time zone",
-      "invalid": "Any number over 2k is invalid",
+      "invalid": "Any number over 100m is invalid",
       "title": "Premium"
     },
     "premiumWarning": {
-      "description": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $2,000 and reduces over 28 days until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
+      "description": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000 and reduces over 28 days until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
+      "exponentialWarningDescripiton": "To ensure everyone has a fair opportunity to register a newly expired name, these names have a premium that starts at $100,000,000 and reduces over 21 days exponentially until the premium is gone. Enter the amount you're willing to pay as a premium to learn which date to revisit the app to register the name.",
       "title": "This name has a temporary premium."
     },
     "step1": {
@@ -344,7 +341,8 @@
     },
     "subdomains": {
       "add": "Subdomain hinzufügen",
-      "nosubdomains": "Es wurden keine Subdomains hinzugefügt"
+      "nosubdomains": "Es wurden keine Subdomains hinzugefügt",
+      "wildcard": "This domain may have other subdomains that cannot be shown as they are off chain"
     },
     "tabs": {
       "details": "Details",

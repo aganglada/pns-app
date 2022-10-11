@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import styled from '@emotion/styled/macro'
 import { useTranslation } from 'react-i18next'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 import { useQuery } from '@apollo/client'
 
 import { parseSearchTerm } from '../../utils/utils'
@@ -122,7 +122,7 @@ function Search({ history, className, style }) {
           history.push(`/name/${searchTerm}`)
           return
         } else {
-          history.push(`/search/${searchTerm}`)
+          history.push(`/search/${encodeURI(searchTerm)}`)
         }
       }}
     >
@@ -130,6 +130,7 @@ function Search({ history, className, style }) {
         placeholder={t('search.placeholder')}
         ref={el => (input = el)}
         onChange={handleParse}
+        autoCapitalize="off"
       />
       <LanguageSwitcher />
       <button

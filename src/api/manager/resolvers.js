@@ -29,7 +29,6 @@ import getENS, { getRegistrar } from 'apollo/mutations/ens'
 import { isENSReadyReactive, namesReactive } from '../../apollo/reactiveVars'
 import getReverseRecord from './getReverseRecord'
 import { isEmptyAddress } from '../../utils/records'
-
 const defaults = {
   names: []
 }
@@ -521,7 +520,6 @@ const resolvers = {
       }
 
       if (
-        process &&
         process.env.REACT_APP_STAGE === 'local' &&
         process.env.REACT_APP_DEPRECATED_RESOLVERS
       ) {
@@ -566,6 +564,10 @@ const resolvers = {
     isMigrated: (_, { name }) => {
       const ens = getENS()
       return ens.isMigrated(name)
+    },
+    wildcardResolverDomain: async (_, { name }) => {
+      const ens = getENS()
+      return ens.supportsWildcard(name)
     },
     isContractController: async (_, { address }) => {
       let provider = await getWeb3()
@@ -898,7 +900,7 @@ const resolvers = {
 
       async function getAllRecordsNew(name, publicResolver) {
         const promises = [
-          ens.getEthAddressWithResolver(name, publicResolver),
+          ens.getAddrWithResolver(name, publicResolver),
           getContenthashWithResolver(name, publicResolver),
           getAllTextRecordsWithResolver(name, publicResolver),
           getAllAddressesWithResolver(name, publicResolver)

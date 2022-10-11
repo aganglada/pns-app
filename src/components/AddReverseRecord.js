@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import _ from 'lodash'
+import uniq from 'lodash/uniq'
 import { useQuery, useMutation } from '@apollo/client'
 import styled from '@emotion/styled/macro'
 import { useTranslation, Trans } from 'react-i18next'
@@ -25,7 +25,7 @@ import Select from 'react-select'
 import Modal from './Modal/Modal'
 import Bin from '../components/Forms/Bin'
 import Gap from '../components/Utils/Gap'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 
 const Loading = styled('span')`
   color: #adbbcd;
@@ -56,14 +56,14 @@ const Message = styled('div')`
   font-family: Overpass Mono;
   font-weight: 700;
   font-size: 14px;
-  color: #adbbcd;
+  color: ${p => (p.nameSet ? '#747f8c' : '#adbbcd')};
   letter-spacing: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
 
   &:hover {
-    cursor: pointer;
+    cursor: ${p => (p.pending ? 'default' : 'pointer')};
   }
 `
 
@@ -140,13 +140,19 @@ function AddReverseRecord({ account, currentAddress }) {
 
   const [setName] = useMutation(SET_NAME, {
     onCompleted: data => {
-      startPending(Object.values(data)[0])
+      if (Object.values(data)[0]) {
+        startPending(Object.values(data)[0])
+      }
     }
   })
 
   useEffect(() => {
-    startEditing()
-  }, [getReverseRecord, account])
+    if (!getReverseRecord) return
+    if (!hasValidReverseRecord(getReverseRecord)) {
+      startEditing()
+      return
+    }
+  }, [loading])
 
   const {
     data: { networkId }
@@ -177,7 +183,7 @@ function AddReverseRecord({ account, currentAddress }) {
     account.toLowerCase() === currentAddress.toLowerCase()
 
   if (domains) {
-    options = _.uniq(
+    options = uniq(
       domains
         .map(domain => {
           if (checkIsDecrypted(domain?.name)) {
@@ -210,7 +216,17 @@ function AddReverseRecord({ account, currentAddress }) {
   function ReverseRecordEditor() {
     return (
       <>
-        <Message onClick={editing ? stopEditing : startEditing}>
+        <Message
+          onClick={e =>
+            editing
+              ? stopEditing()
+              : pending
+              ? e.preventDefault()
+              : startEditing()
+          }
+          pending={pending}
+          nameSet={hasValidReverseRecord(getReverseRecord)}
+        >
           {hasValidReverseRecord(getReverseRecord) ? (
             <MessageContent data-testid="editable-reverse-record-set">
               <Check />

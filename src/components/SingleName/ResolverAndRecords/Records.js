@@ -4,8 +4,7 @@ import styled from '@emotion/styled/macro'
 import isEqual from 'lodash/isEqual'
 import differenceWith from 'lodash/differenceWith'
 import { useTranslation } from 'react-i18next'
-import { throttle } from 'lodash'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 
 import { getNamehash, emptyAddress } from '@pnsdomains/ui'
 import { useEditable } from '../../hooks'
@@ -13,6 +12,7 @@ import { ADD_MULTI_RECORDS } from '../../../graphql/mutations'
 import COIN_LIST from 'constants/coinList'
 import PendingTx from '../../PendingTx'
 import { formatsByCoinType } from '@ensdomains/address-encoder'
+import union from 'lodash/union'
 
 import {
   GET_ADDRESSES,
@@ -74,7 +74,7 @@ const RECORDS = [
 ]
 import TEXT_PLACEHOLDER_RECORDS from '../../../constants/textRecords'
 import { validateRecord } from '../../../utils/records'
-import { usePrevious } from '../../../utils/utils'
+import { asyncThrottle, usePrevious } from '../../../utils/utils'
 import { isEthSubdomain, requestCertificate } from './Certificate'
 
 const COIN_PLACEHOLDER_RECORDS = ['ETH', ...COIN_LIST.slice(0, 3)]
@@ -128,36 +128,38 @@ const useGetRecords = domain => {
       id: getNamehash(domain.name)
     }
   })
-
   const resolver =
     dataResolver && dataResolver.domain && dataResolver.domain.resolver
 
   const coinList =
     resolver &&
     resolver.coinTypes &&
-    resolver.coinTypes.map(c => formatsByCoinType[c].name)
+    resolver.coinTypes
+      .map(c => {
+        return formatsByCoinType[c] && formatsByCoinType[c].name
+      })
+      .filter(c => c)
 
   const { loading: addressesLoading, data: dataAddresses } = useQuery(
     GET_ADDRESSES,
     {
-      variables: { name: domain.name, keys: coinList },
-      skip: !coinList,
+      variables: {
+        name: domain.name,
+        keys: union(coinList, COIN_PLACEHOLDER_RECORDS)
+      },
       fetchPolicy: 'network-only'
     }
   )
-
   const { loading: textRecordsLoading, data: dataTextRecords } = useQuery(
     GET_TEXT_RECORDS,
     {
       variables: {
         name: domain.name,
-        keys: resolver && resolver.texts
+        keys: union(resolver && resolver.texts, TEXT_PLACEHOLDER_RECORDS)
       },
-      skip: !dataResolver,
       fetchPolicy: 'network-only'
     }
   )
-
   return {
     dataAddresses,
     dataTextRecords,
@@ -206,20 +208,21 @@ const getInitialCoins = dataAddresses => {
   }))
 }
 
-const getInitialTextRecords = dataTextRecords => {
+const getInitialTextRecords = (dataTextRecords, domain) => {
   const textRecords =
     dataTextRecords && dataTextRecords.getTextRecords
       ? processRecords(dataTextRecords.getTextRecords, TEXT_PLACEHOLDER_RECORDS)
       : processRecords([], TEXT_PLACEHOLDER_RECORDS)
 
   return textRecords?.map(textRecord => ({
+    addr: domain.addr,
     contractFn: 'setText',
     ...textRecord
   }))
 }
 
 const getInitialRecords = (domain, dataAddresses, dataTextRecords) => {
-  const initialTextRecords = getInitialTextRecords(dataTextRecords)
+  const initialTextRecords = getInitialTextRecords(dataTextRecords, domain)
   const initialCoins = getInitialCoins(dataAddresses)
   const initialContent = getInitialContent(domain)
 
@@ -282,9 +285,13 @@ const validateAllRecords = (updatedRecords, validRecords) =>
 const singleValidator = validRecords => record =>
   validRecords.some(el => el.key === record.key && el.val === record.val)
 
-const getValidRecords = (records, validator) => {
-  return records.filter(record => validator(record))
-}
+const singleValidating = validatingRecords => record =>
+  validatingRecords.some(el => el.key === record.key && el.val === record.val)
+
+const getValidRecords = async (records, validator) =>
+  Promise.all(records.map(validator)).then(results =>
+    records.map((value, index) => ({ valid: results[index], record: value }))
+  )
 
 const useInitRecords = (
   domain,
@@ -310,10 +317,18 @@ const useUpdatedRecords = (
   }, [recordsLoading, initialRecords, prevInitialRecords])
 }
 
-const throttledUpdate = throttle(
-  (setChangedRecords, setValidRecords, initialRecords, updatedRecords) => {
+const throttledUpdate = asyncThrottle(
+  (
+    setChangedRecords,
+    initialRecords,
+    updatedRecords,
+    setValidatingRecords,
+    updatedRecordDiff,
+    validatingRecords
+  ) => {
     setChangedRecords(getChangedRecords(initialRecords, updatedRecords))
-    setValidRecords(getValidRecords(updatedRecords, validateRecord))
+    setValidatingRecords([...validatingRecords, ...updatedRecordDiff])
+    return getValidRecords(updatedRecordDiff, validateRecord)
   },
   500
 )
@@ -323,16 +338,55 @@ const useChangedValidRecords = (
   setChangedRecords,
   setValidRecords,
   initialRecords,
-  updatedRecords
+  updatedRecords,
+  setValidatingRecords,
+  validRecords,
+  validatingRecords
 ) => {
+  const prevUpdatedRecords = usePrevious(updatedRecords)
+  const updatedRecordsRef = useRef()
+  const validRecordsRef = useRef()
+  const validatingRecordsRef = useRef()
+
+  updatedRecordsRef.current = updatedRecords
+  validRecordsRef.current = validRecords
+  validatingRecordsRef.current = validatingRecords
+
   useEffect(() => {
     if (!recordsLoading) {
+      const updatedRecordDiff = updatedRecords.filter(
+        record => !prevUpdatedRecords.includes(record)
+      )
       throttledUpdate(
         setChangedRecords,
-        setValidRecords,
         initialRecords,
-        updatedRecords
-      )
+        updatedRecords,
+        setValidatingRecords,
+        updatedRecordDiff,
+        validatingRecordsRef.current
+      ).then(newValidatedRecords => {
+        const validatableRecords = newValidatedRecords.filter(record =>
+          updatedRecordsRef.current.includes(record.record)
+        )
+        const validRecordsWithoutNew = validRecordsRef.current.filter(
+          record => !validatableRecords.some(el => el.record.key === record.key)
+        )
+        const recordsToAddToValid = validatableRecords
+          .filter(
+            record =>
+              record.valid ||
+              (record.record.key.match(/_LEGACY/) &&
+                record.record.value ===
+                  initialRecords.find(el => el.key === record.record.key).value)
+          )
+          .map(record => record.record)
+        setValidRecords([...validRecordsWithoutNew, ...recordsToAddToValid])
+        setValidatingRecords(
+          validatingRecordsRef.current.filter(
+            record => !updatedRecordDiff.includes(record)
+          )
+        )
+      })
     }
   }, [updatedRecords, recordsLoading, initialRecords])
 }
@@ -362,7 +416,8 @@ export default function Records({
   hasResolver,
   isOldPublicResolver,
   isDeprecatedResolver,
-  needsToBeMigrated
+  needsToBeMigrated,
+  readOnly = false
 }) {
   const { t } = useTranslation()
   const {
@@ -377,6 +432,7 @@ export default function Records({
   const [updatedRecords, setUpdatedRecords] = useState([])
   const [changedRecords, setChangedRecords] = useState([])
   const [validRecords, setValidRecords] = useState([])
+  const [validatingRecords, setValidatingRecords] = useState([])
 
   const { actions, state } = useEditable()
   const { pending, confirmed, editing, txHash } = state
@@ -402,7 +458,10 @@ export default function Records({
     setChangedRecords,
     setValidRecords,
     initialRecords,
-    updatedRecords
+    updatedRecords,
+    setValidatingRecords,
+    validRecords,
+    validatingRecords
   )
   useResetFormOnAccountChange(
     accounts?.[0],
@@ -432,7 +491,7 @@ export default function Records({
         <CantEdit>{t('singleName.record.cantEdit')}</CantEdit>
       ) : (
         <AddRecord
-          canEdit={canEditRecords}
+          canEdit={canEditRecords && !readOnly}
           emptyRecords={RECORDS}
           updateRecord={addOrUpdateRecord(
             updateRecord(setUpdatedRecords),
@@ -459,6 +518,7 @@ export default function Records({
         updateRecord={updateRecord(setUpdatedRecords)}
         changedRecords={changedRecords}
         validator={singleValidator(validRecords)}
+        validating={singleValidating(validatingRecords)}
       />
       <ContentHash
         canEdit={canEditRecords}
@@ -481,6 +541,7 @@ export default function Records({
         updateRecord={updateRecord(setUpdatedRecords)}
         changedRecords={changedRecords}
         validator={singleValidator(validRecords)}
+        validating={singleValidating(validatingRecords)}
       />
       {pending && !confirmed && txHash && (
         <ConfirmBox pending={pending}>
@@ -521,7 +582,8 @@ export default function Records({
             }
             isValid={
               !!changedRecords.length &&
-              validateAllRecords(updatedRecords, validRecords)
+              validateAllRecords(updatedRecords, validRecords) &&
+              !validatingRecords.length
             }
           />
         </ConfirmBox>

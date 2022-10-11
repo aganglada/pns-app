@@ -9,7 +9,8 @@ import { useAccount } from '../QueryAccount'
 import {
   GET_FAVOURITES,
   GET_DOMAINS_SUBGRAPH,
-  GET_REGISTRATIONS_SUBGRAPH
+  GET_REGISTRATIONS_SUBGRAPH,
+  GET_ERRORS
 } from '../../graphql/queries'
 import { decryptName, checkIsDecrypted } from '../../api/labels'
 
@@ -19,7 +20,11 @@ import AddressContainer from '../Basic/MainContainer'
 import DefaultTopBar from '../Basic/TopBar'
 import { Title as DefaultTitle } from '../Typography/Basic'
 import DefaultEtherScanLink from '../Links/EtherScanLink'
-import { getEtherScanAddr, filterNormalised } from '../../utils/utils'
+import {
+  getEtherScanAddr,
+  filterNormalised,
+  normaliseOrMark
+} from '../../utils/utils'
 import { calculateIsExpiredSoon } from '../../utils/dates'
 import DomainList from './DomainList'
 import RenewAll from './RenewAll'
@@ -31,11 +36,13 @@ import Checkbox from '../Forms/Checkbox'
 import { SingleNameBlockies } from '../Blockies'
 import Pager from './Pager'
 import AddReverseRecord from '../AddReverseRecord'
+import { InvalidCharacterError } from '../Error/Errors'
 
 import warning from '../../assets/yellowwarning.svg'
 import close from '../../assets/close.svg'
 import { useBlock } from '../hooks'
-import gql from 'graphql-tag'
+import { globalErrorReactive } from '../../apollo/reactiveVars'
+import { gql } from '@apollo/client'
 import {
   NonMainPageBannerContainerWithMarginBottom,
   DAOBannerContent
@@ -178,13 +185,19 @@ export const useResetState = (
   setYears,
   setCheckedBoxes,
   setSelectAll,
-  networkId
+  networkId,
+  address,
+  globalErrorReactive
 ) => {
   useEffect(() => {
     setYears(1)
     setCheckedBoxes({})
     setSelectAll(null)
-  }, [networkId])
+    globalErrorReactive({
+      ...globalErrorReactive(),
+      invalidCharacter: null
+    })
+  }, [networkId, address])
 }
 
 export default function Address({
@@ -213,7 +226,14 @@ export default function Address({
   let [checkedBoxes, setCheckedBoxes] = useState({})
   let [years, setYears] = useState(1)
   const [selectAll, setSelectAll] = useState(false)
-  useResetState(setYears, setCheckedBoxes, setSelectAll, networkId)
+  useResetState(
+    setYears,
+    setCheckedBoxes,
+    setSelectAll,
+    networkId,
+    address,
+    globalErrorReactive
+  )
 
   let currentDate, expiryDate
   if (process.env.REACT_APP_STAGE === 'local') {
@@ -236,6 +256,9 @@ export default function Address({
     expiryDate
   })
 
+  const {
+    data: { globalError }
+  } = useQuery(GET_ERRORS)
   const { data: { favourites } = [] } = useQuery(GET_FAVOURITES)
   useEffect(() => {
     if (isENSReady) {
@@ -262,11 +285,14 @@ export default function Address({
     ]
   }
 
-  let decryptedDomains = filterNormalised(
+  let decryptedDomains = normaliseOrMark(
     decryptNames(normalisedDomains),
     'labelName',
     true
   )
+  if (globalError.invalidCharacter || !decryptedDomains) {
+    return <InvalidCharacterError message={globalError.invalidCharacter} />
+  }
   // let sortedDomains = decryptedDomains.sort(getSortFunc(activeSort))
   let domains = decryptedDomains
   const selectedNames = Object.entries(checkedBoxes)
@@ -381,7 +407,7 @@ export default function Address({
           setSelectAll={setSelectAll}
           address={address}
           domains={domains}
-          favourites={filterNormalised(favourites, 'labelName')}
+          favourites={normaliseOrMark(favourites, 'labelName')}
           activeSort={activeSort}
           activeFilter={domainType}
           checkedBoxes={checkedBoxes}

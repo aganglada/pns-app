@@ -10,12 +10,13 @@ import EthVal from 'ethval'
 import {
   GET_PUBLIC_RESOLVER,
   GET_RENT_PRICE,
-  IS_CONTRACT_CONTROLLER
+  IS_CONTRACT_CONTROLLER,
+  GET_ETH_PRICE
 } from '../../graphql/queries'
 import { SET_RESOLVER, SET_SUBNODE_OWNER, SET_OWNER } from 'graphql/mutations'
 
 import mq from 'mediaQuery'
-import { useEditable, useEthPrice } from '../hooks'
+import { useEditable } from '../hooks'
 import { calculateDuration, formatDate } from 'utils/dates'
 import { trackReferral } from 'utils/analytics'
 import { addressUtils, emptyAddress } from 'utils/utils'
@@ -44,6 +45,7 @@ import DefaultPricer from './Pricer'
 import DefaultAddressInput from '@ensdomains/react-ens-address'
 import CopyToClipboard from '../CopyToClipboard/'
 import { isOwnerOfParentDomain } from '../../utils/utils'
+import { ReactComponent as DefaultOrangeExclamation } from '../Icons/OrangeExclamation.svg'
 
 const AddressInput = styled(DefaultAddressInput)`
   margin-bottom: 10px;
@@ -166,6 +168,23 @@ const ResolverAddressWarning = styled('span')`
   color: #f6412d;
   margin-left: 3em;
   margin-right: auto;
+`
+
+const ResolverInfoWarning = styled.div`
+  color: #f5a524;
+
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+
+  font-weight: bold;
+
+  & > svg {
+    width: 11px;
+    height: 11px;
+  }
 `
 
 const SaveCancel = motion.custom(DefaultSaveCancel)
@@ -292,7 +311,7 @@ function getInputType(
   return (
     <Input
       value={newValue}
-      onChange={e => updateValue(e.target.value)}
+      onChange={e => updateValue(e.target.value.trim())}
       valid={isValid}
       invalid={isInvalid}
       placeholder={keyName === 'Resolver' ? placeholder : ''}
@@ -341,7 +360,8 @@ const Editable = ({
   variableName,
   refetch,
   confirm,
-  copyToClipboard
+  copyToClipboard,
+  needsToBeMigrated
 }) => {
   const { t } = useTranslation()
   const { state, actions } = useEditable()
@@ -362,13 +382,17 @@ const Editable = ({
   let expirationDate
   const [years, setYears] = useState(1)
 
-  const { price: ethUsdPrice, loading: ethUsdPriceLoading } = useEthPrice(
-    keyName === 'Expiration Date'
-  )
   if (keyName === 'Expiration Date') {
     duration = calculateDuration(years)
     expirationDate = new Date(new Date(value).getTime() + duration * 1000)
   }
+  const { data: ethUsdPriceData = {}, loading: ethUsdPriceLoading } = useQuery(
+    GET_ETH_PRICE,
+    {
+      skip: keyName !== 'Expiration Date'
+    }
+  )
+  let ethUsdPrice = ethUsdPriceData?.getEthPrice
 
   const { data: { getRentPrice } = {}, loading: rentPriceLoading } = useQuery(
     GET_RENT_PRICE,
@@ -453,7 +477,7 @@ const Editable = ({
               expiryDate={type === 'date'}
             >
               {type === 'address' ? (
-                <AddressLink address={value}>
+                <AddressLink address={value} ariaLabel={t(`c.${keyName}`)}>
                   <SingleNameBlockies address={value} imageSize={24} />
                   {keyName === 'Resolver' &&
                   domain.contentType === 'oldcontent' ? (
@@ -481,7 +505,12 @@ const Editable = ({
                 </AddressLink>
               ) : type === 'date' ? (
                 <>
-                  <ExpiryDate>{formatDate(value)}</ExpiryDate>
+                  <ExpiryDate
+                    tabIndex={0}
+                    aria-label={`${t(`c.${keyName}`)}${formatDate(value)}`}
+                  >
+                    {formatDate(value)}
+                  </ExpiryDate>
                   <AddToCalendar
                     css={css`
                       margin-right: 20px;
@@ -491,6 +520,7 @@ const Editable = ({
                     registrant={domain.registrant}
                     startDatetime={moment(value)
                       .utc()
+                      .local()
                       .subtract(30, 'days')}
                   />
                 </>
@@ -588,6 +618,14 @@ const Editable = ({
             }}
             transition={{ ease: 'easeOut', duration: 0.3 }}
           >
+            {keyName === 'Resolver' && !needsToBeMigrated && (
+              <ResolverInfoWarning>
+                <DefaultOrangeExclamation />
+                <p style={{ color: '#F5A524' }}>
+                  {t('singleName.resolver.info')}
+                </p>
+              </ResolverInfoWarning>
+            )}
             <EditRecord
               initial={{
                 scale: 0,
@@ -713,7 +751,7 @@ function ViewOnly({
         <DetailsKey>{t(`c.${keyName}`)}</DetailsKey>
         <DetailsValue data-testid={`details-value-${keyName.toLowerCase()}`}>
           {type === 'address' ? (
-            <AddressLink address={value}>
+            <AddressLink address={value} ariaLabel={t(`c.${keyName}`)}>
               <SingleNameBlockies address={value} imageSize={24} />
               {value}
             </AddressLink>

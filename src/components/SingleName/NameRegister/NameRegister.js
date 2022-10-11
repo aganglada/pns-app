@@ -3,22 +3,17 @@ import styled from '@emotion/styled/macro'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@apollo/client'
 import moment from 'moment'
-import gql from 'graphql-tag'
-
 import {
   CHECK_COMMITMENT,
   GET_MINIMUM_COMMITMENT_AGE,
   GET_MAXIMUM_COMMITMENT_AGE,
-  GET_RENT_PRICE,
+  GET_RENT_PRICE_AND_PREMIUM,
   WAIT_BLOCK_TIMESTAMP,
-  GET_BALANCE
+  GET_BALANCE,
+  GET_ETH_PRICE,
+  GET_PRICE_CURVE
 } from 'graphql/queries'
-import {
-  useInterval,
-  useEthPrice,
-  useGasPrice,
-  useBlock
-} from 'components/hooks'
+import { useInterval, useGasPrice, useBlock } from 'components/hooks'
 import { useAccount } from '../../QueryAccount'
 import { registerMachine, registerReducer } from './registerReducer'
 import { calculateDuration, yearInSeconds } from 'utils/dates'
@@ -34,7 +29,7 @@ import Premium from './Premium'
 import ProgressRecorder from './ProgressRecorder'
 import useNetworkInfo from '../../NetworkInformation/useNetworkInfo'
 import { sendNotification } from './notification'
-
+import PremiumPriceOracle from './PremiumPriceOracle'
 const NameRegisterContainer = styled('div')`
   padding: 20px 40px;
 `
@@ -51,7 +46,8 @@ const NameRegister = ({
   waitTime,
   refetch,
   refetchIsMigrated,
-  readOnly,
+  isReadOnly,
+  isNameWrapped,
   registrationOpen
 }) => {
   const { t } = useTranslation()
@@ -61,7 +57,7 @@ const NameRegister = ({
     registerReducer,
     registerMachine.initialState
   )
-  let now, showPremiumWarning, currentPremium, currentPremiumInEth, underPremium
+  let now, showPremiumWarning, currentPremium, underPremium
   const incrementStep = () => dispatch('NEXT')
   const decrementStep = () => dispatch('PREVIOUS')
   const [years, setYears] = useState(false)
@@ -75,7 +71,11 @@ const NameRegister = ({
   const [commitmentExpirationDate, setCommitmentExpirationDate] = useState(
     false
   )
-  const { loading: ethUsdPriceLoading, price: ethUsdPrice } = useEthPrice()
+  const {
+    data: { getEthPrice: ethUsdPrice } = {},
+    loading: ethUsdPriceLoading
+  } = useQuery(GET_ETH_PRICE)
+  const { data: { getPriceCurve } = {} } = useQuery(GET_PRICE_CURVE)
   const { loading: gasPriceLoading, price: gasPrice } = useGasPrice()
   const { block } = useBlock()
   const [invalid, setInvalid] = useState(false)
@@ -173,16 +173,25 @@ const NameRegister = ({
   )
   const parsedYears = parseFloat(years)
   const duration = calculateDuration(years)
-  const { data: { getRentPrice } = {}, loading: rentPriceLoading } = useQuery(
-    GET_RENT_PRICE,
-    {
-      variables: {
-        duration,
-        label: domain.label,
-        commitmentTimerRunning
-      }
-    }
-  )
+  const {
+    data: { getRentPriceAndPremium } = {},
+    loading: rentPriceLoading
+  } = useQuery(GET_RENT_PRICE_AND_PREMIUM, {
+    variables: {
+      duration,
+      label: domain.label,
+      commitmentTimerRunning,
+      block: block?.number
+    },
+    skip: !(block && block.number),
+    fetchPolicy: 'no-cache'
+  })
+  let getRentPrice, getPremiumPrice
+  if (getRentPriceAndPremium) {
+    getRentPrice = getRentPriceAndPremium.price
+    getPremiumPrice = getRentPriceAndPremium.premium
+  }
+
   let hasSufficientBalance
   if (!blockCreatedAt && checkCommitment > 0) {
     setBlockCreatedAt(checkCommitment * 1000)
@@ -200,37 +209,28 @@ const NameRegister = ({
   const waitPercentComplete = (secondsPassed / waitTime) * 100
 
   const expiryDate = moment(domain.expiryTime)
-  const releasedDate = expiryDate.clone().add(90, 'days')
-  const zeroPremiumDate = releasedDate.clone().add(28, 'days')
-  const startingPremiumInUsd = 2000
-  const diff = zeroPremiumDate.diff(releasedDate)
-  const rate = 2000 / diff
+  const oracle = new PremiumPriceOracle(expiryDate, getPriceCurve)
+  const { releasedDate, zeroPremiumDate, startingPremiumInUsd } = oracle
+
   if (!registrationOpen) return <NotAvailable domain={domain} />
   if (ethUsdPriceLoading || gasPriceLoading) return <></>
 
-  const getTargetAmountByDate = date => {
-    return zeroPremiumDate.diff(date) * rate
-  }
-
-  const getTargetDateByAmount = amount => {
-    return zeroPremiumDate.clone().subtract(amount / rate / 1000, 'second')
-  }
-
   if (!targetDate) {
     setTargetDate(zeroPremiumDate)
-    setTargetPremium(getTargetAmountByDate(zeroPremiumDate))
+    setTargetPremium(
+      oracle.getTargetAmountByDaysPast(oracle.getDaysPast(zeroPremiumDate))
+    )
   }
 
   if (block) {
     showPremiumWarning = now.isBetween(releasedDate, zeroPremiumDate)
-    currentPremium = getTargetAmountByDate(now)
-    currentPremiumInEth = currentPremium / ethUsdPrice
+    currentPremium = oracle.getTargetAmountByDaysPast(oracle.getDaysPast(now))
     underPremium = now.isBetween(releasedDate, zeroPremiumDate)
   }
   const handleTooltip = tooltipItem => {
     let delimitedParsedValue = tooltipItem.yLabel
     if (targetPremium !== delimitedParsedValue) {
-      setTargetDate(getTargetDateByAmount(delimitedParsedValue))
+      setTargetDate(oracle.getTargetDateByAmount(delimitedParsedValue))
       setTargetPremium(delimitedParsedValue.toFixed(2))
     }
   }
@@ -243,7 +243,7 @@ const NameRegister = ({
       parseInt(parsedValue || 0) <= startingPremiumInUsd
     ) {
       if (targetPremium !== parsedValue) {
-        setTargetDate(getTargetDateByAmount(parsedValue))
+        setTargetDate(oracle.getTargetDateByAmount(parsedValue))
         setTargetPremium(parsedValue)
       }
       setInvalid(false)
@@ -251,7 +251,6 @@ const NameRegister = ({
       setInvalid(true)
     }
   }
-  debugger
   return (
     <NameRegisterContainer>
       {step === 'PRICE_DECISION' && (
@@ -266,6 +265,7 @@ const NameRegister = ({
           gasPrice={gasPrice}
           loading={rentPriceLoading}
           price={getRentPrice}
+          premiumOnlyPrice={getPremiumPrice}
           underPremium={underPremium}
           displayGas={true}
         />
@@ -273,18 +273,26 @@ const NameRegister = ({
       {showPremiumWarning ? (
         <PremiumWarning>
           <h2>{t('register.premiumWarning.title')}</h2>
-          <p>{t('register.premiumWarning.description')} </p>
+          <p>
+            {getPriceCurve === 'exponential'
+              ? t('register.premiumWarning.exponentialWarningDescripiton')
+              : t('register.premiumWarning.description')}
+          </p>
           <LineGraph
             startDate={releasedDate}
             currentDate={now}
             targetDate={targetDate}
             endDate={zeroPremiumDate}
-            startPremium={startingPremiumInUsd}
-            currentPremiumInEth={currentPremiumInEth}
-            currentPremium={currentPremium}
             targetPremium={targetPremium}
+            ethUsdPrice={ethUsdPrice}
             handleTooltip={handleTooltip}
+            underPremium={underPremium}
+            oracle={oracle}
+            price={getRentPrice}
+            now={now}
+            premiumOnlyPrice={getPremiumPrice}
           />
+
           <Premium
             handlePremium={handlePremium}
             targetPremium={targetPremium}
@@ -320,7 +328,8 @@ const NameRegister = ({
         refetch={refetch}
         refetchIsMigrated={refetchIsMigrated}
         isAboveMinDuration={isAboveMinDuration}
-        readOnly={readOnly}
+        isReadOnly={isReadOnly}
+        isNameWrapped={isNameWrapped}
         price={getRentPrice}
         years={years}
         premium={currentPremium}

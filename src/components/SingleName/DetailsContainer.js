@@ -46,7 +46,7 @@ const Loader = styled(DefaultLoader)`
 const Button = styled(DefaultButton)`
   position: absolute;
   width: 130px;
-  background-colore: white;
+  background-color: white;
 `
 
 const ButtonContainer = styled('div')`
@@ -164,7 +164,7 @@ const GracePeriodWarning = ({ date, expiryTime }) => {
       <Expiration isExpired={isExpired}>
         {isExpired
           ? t('singleName.expiry.expired')
-          : t('singleName.expiry.expiringSoon')}
+          : t('singleName.expiry.expiring')}
       </Expiration>
       <GracePeriodText isExpired={isExpired}>
         {t('singleName.expiry.gracePeriodEnds')}{' '}
@@ -197,7 +197,8 @@ function DetailsContainer({
   loadingIsMigrated,
   refetchIsMigrated,
   isParentMigratedToNewRegistry,
-  loadingIsParentMigrated
+  loadingIsParentMigrated,
+  readOnly = false
 }) {
   const { t } = useTranslation()
   const isExpired = domain.expiryTime < new Date()
@@ -229,14 +230,15 @@ function DetailsContainer({
             refetchIsMigrated={refetchIsMigrated}
             isParentMigratedToNewRegistry={isParentMigratedToNewRegistry}
             loadingIsParentMigrated={loadingIsParentMigrated}
+            readOnly={readOnly}
           />
         )}
       {domainParent ? (
         <DetailsItem uneditable>
           <DetailsKey>{t('c.parent')}</DetailsKey>
           <DetailsValue>
-            <Link to={`/name/${domainParent}`}>
-              {domainParent.split('x')[0]}
+            <Link to={`/name/${domainParent}`} aria-label={t('c.parent')}>
+              {domainParent}
             </Link>
           </DetailsValue>
         </DetailsItem>
@@ -266,7 +268,7 @@ function DetailsContainer({
               domain={domain}
               keyName="registrant"
               value={registrant}
-              canEdit={isRegistrant && !isExpired}
+              canEdit={isRegistrant && !isExpired && !readOnly}
               isExpiredRegistrant={isRegistrant && isExpired}
               type="address"
               editButton={t('c.transfer')}
@@ -280,7 +282,10 @@ function DetailsContainer({
               domain={domain}
               keyName="Controller"
               value={domainOwner}
-              canEdit={isRegistrant || (isOwner && isMigratedToNewRegistry)}
+              canEdit={
+                !readOnly &&
+                (isRegistrant || (isOwner && isMigratedToNewRegistry))
+              }
               deedOwner={domain.deedOwner}
               isDeedOwner={isDeedOwner}
               type="address"
@@ -297,7 +302,10 @@ function DetailsContainer({
             <DetailsItem uneditable>
               <DetailsKey>{t('c.registrant')}</DetailsKey>
               <DetailsValue>
-                <AddressLink address={domain.deedOwner}>
+                <AddressLink
+                  address={domain.deedOwner}
+                  arialLabel={t('c.registrant')}
+                >
                   <SingleNameBlockies
                     address={domain.deedOwner}
                     imageSize={24}
@@ -310,7 +318,10 @@ function DetailsContainer({
               domain={domain}
               keyName="Controller"
               value={domain.owner}
-              canEdit={isRegistrant || (isOwner && isMigratedToNewRegistry)}
+              canEdit={
+                !readOnly &&
+                (isRegistrant || (isOwner && isMigratedToNewRegistry))
+              }
               deedOwner={domain.deedOwner}
               isDeedOwner={isDeedOwner}
               type="address"
@@ -328,7 +339,7 @@ function DetailsContainer({
               {t('c.Controller')} {isOwner ? <You /> : ''}
             </DetailsKey>
             <DetailsValue>
-              <AddressLink address={domain.owner}>
+              <AddressLink address={domain.owner} ariaLabel={t('c.Controller')}>
                 {outOfSync ? (
                   <SingleNameBlockies
                     address={domain.owner}
@@ -346,7 +357,7 @@ function DetailsContainer({
               </AddressLink>
             </DetailsValue>
             <ButtonContainer outOfSync={outOfSync}>
-              {canSubmit ? (
+              {canSubmit && !readOnly ? (
                 <SubmitProof
                   name={domain.name}
                   parentOwner={domain.parentOwner}
@@ -389,7 +400,10 @@ function DetailsContainer({
             domain={domain}
             keyName="Controller"
             value={domain.owner}
-            canEdit={(isOwner || isOwnerOfParent) && isMigratedToNewRegistry}
+            canEdit={
+              !readOnly &&
+              ((isOwner || isOwnerOfParent) && isMigratedToNewRegistry)
+            }
             deedOwner={domain.deedOwner}
             isDeedOwner={isDeedOwner}
             outOfSync={outOfSync}
@@ -411,7 +425,10 @@ function DetailsContainer({
                 {dnssecmode.displayError ? (
                   <DNSOwnerError>{dnssecmode.title}</DNSOwnerError>
                 ) : (
-                  <AddressLink address={domain.dnsOwner}>
+                  <AddressLink
+                    address={domain.dnsOwner}
+                    ariaLabel={t('dns.dnsowner')}
+                  >
                     <SingleNameBlockies
                       address={domain.dnsOwner}
                       imageSize={24}
@@ -515,7 +532,7 @@ function DetailsContainer({
                 domain={domain}
                 keyName="Expiration Date"
                 value={domain.expiryTime}
-                canEdit={parseInt(account, 16) !== 0}
+                canEdit={!readOnly && parseInt(account, 16) !== 0}
                 type="date"
                 editButton={t('c.renew')}
                 mutationButton={t('c.renew')}
@@ -553,6 +570,7 @@ function DetailsContainer({
         refetch={refetch}
         account={account}
         isMigratedToNewRegistry={isMigratedToNewRegistry}
+        readOnly={readOnly}
       />
       {canClaim(domain) ? (
         <NameClaimTestDomain domain={domain} refetch={refetch} />

@@ -45,7 +45,7 @@ const Icon = styled('div')`
 
 const Amount = styled('div')`
   width: 150px;
-  padding-left: 20px;
+  padding: 0 5px;
   display: flex;
   font-family: Overpass;
   font-size: 28px;
@@ -61,8 +61,9 @@ const Amount = styled('div')`
     font-weight: 100;
     color: #2b2b2b;
     border: none;
-    max-width: 45px;
+    max-width: 65px;
     outline: 0;
+    text-align: center;
   }
 `
 
@@ -87,6 +88,7 @@ const Years = ({ years, setYears }) => {
           <input
             type="text"
             value={years}
+            aria-label={t('pricer.yearUnit')}
             onChange={e => {
               const sign = Math.sign(e.target.value)
               if (sign === -1 || isNaN(sign)) {

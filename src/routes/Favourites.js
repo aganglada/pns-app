@@ -5,13 +5,14 @@ import { Query } from '@apollo/client/react/components'
 import DomainItem from '../components/DomainItem/DomainItem'
 import { getNamehash } from '@pnsdomains/ui'
 import { useQuery } from '@apollo/client'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 
 import {
   GET_FAVOURITES,
   GET_SUBDOMAIN_FAVOURITES,
   GET_OWNER,
-  GET_REGISTRATIONS_BY_IDS_SUBGRAPH
+  GET_REGISTRATIONS_BY_IDS_SUBGRAPH,
+  GET_ERRORS
 } from '../graphql/queries'
 
 import mq from 'mediaQuery'
@@ -22,11 +23,12 @@ import LargeHeart from '../components/Icons/LargeHeart'
 import RenewAll from '../components/Address/RenewAll'
 import Checkbox from '../components/Forms/Checkbox'
 import { useAccount } from '../components/QueryAccount'
-import { filterNormalised } from '../utils/utils'
+import { filterNormalised, normaliseOrMark } from '../utils/utils'
 import {
   NonMainPageBannerContainer,
   DAOBannerContent
 } from '../components/Banner/DAOBanner'
+import { InvalidCharacterError } from '../components/Error/Errors'
 
 const SelectAll = styled('div')`
   grid-area: selectall;
@@ -123,6 +125,7 @@ function Favourites() {
   let [years, setYears] = useState(1)
   let [checkedBoxes, setCheckedBoxes] = useState({})
   const [selectAll, setSelectAll] = useState(false)
+  const account = useAccount()
 
   useResetState(setYears, setCheckedBoxes, setSelectAll)
 
@@ -136,8 +139,26 @@ function Favourites() {
   const { data: { subDomainFavourites } = [] } = useQuery(
     GET_SUBDOMAIN_FAVOURITES
   )
-  const favourites = filterNormalised(favouritesWithUnnormalised, 'name')
-  const ids = favourites && favourites.map(f => getNamehash(f.name))
+  const {
+    data: { globalError }
+  } = useQuery(GET_ERRORS)
+  const favourites = normaliseOrMark(favouritesWithUnnormalised, 'name')
+  if (globalError.invalidCharacter || !favourites) {
+    return <InvalidCharacterError message={globalError.invalidCharacter} />
+  }
+  const ids =
+    favourites &&
+    favourites
+      .map(f => {
+        try {
+          return getNamehash(f.name)
+        } catch (e) {
+          console.error('Error getting favourite ids: ', e)
+          return null
+        }
+      })
+      ?.filter(x => x)
+
   const { data: { registrations } = [], refetch } = useQuery(
     GET_REGISTRATIONS_BY_IDS_SUBGRAPH,
     {
@@ -154,24 +175,36 @@ function Favourites() {
     return <NoDomains />
   }
   let favouritesList = []
+
   if (favourites.length > 0) {
     if (registrations && registrations.length > 0) {
       favouritesList = favourites.map(f => {
-        let r = registrations.filter(
-          a => a.domain.id === getNamehash(f.name)
-        )[0]
-        return {
-          name: f.name,
-          owner: r && r.registrant.id,
-          available: getAvailable(r && r.expiryDate),
-          expiryDate: r && r.expiryDate
+        try {
+          let r = registrations.filter(
+            a => a.domain.id === getNamehash(f.name)
+          )[0]
+          return {
+            name: f.name,
+            owner: r && r.registrant.id,
+            available: getAvailable(r && r.expiryDate),
+            expiryDate: r && r.expiryDate,
+            hasInvalidCharacter: f.hasInvalidCharacter
+          }
+        } catch (e) {
+          return {
+            name: f.name,
+            hasInvalidCharacter: true,
+            available: false,
+            expiryDate: false
+          }
         }
       })
     } else {
       // Fallback when subgraph is not returning result
       favouritesList = favourites.map(f => {
         return {
-          name: f.name
+          name: f.name,
+          hasInvalidCharacter: f.hasInvalidCharacter
         }
       })
     }
@@ -208,7 +241,6 @@ function Favourites() {
     setCheckedBoxes(obj)
   }
   let data = []
-  const account = useAccount()
   const checkedOtherOwner =
     favouritesList.filter(
       f =>
@@ -268,6 +300,8 @@ function Favourites() {
               checkedBoxes={checkedBoxes}
               setCheckedBoxes={setCheckedBoxes}
               setSelectAll={setSelectAll}
+              key={domain.name}
+              hasInvalidCharacter={domain.hasInvalidCharacter}
             />
           )
         })}

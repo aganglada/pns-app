@@ -21,6 +21,7 @@ async function setupWeb3(customProvider) {
 async function init() {
   const ENV = process.argv[2]
   const dnssec = process.argv[3] === 'dnssec'
+  const exponential = process.argv[3] === 'exponential'
 
   switch (ENV) {
     case 'GANACHE_GUI':
@@ -39,13 +40,14 @@ async function init() {
 
   const accounts = await getAccounts(web3)
 
-  const addresses = await deployTestEns({ web3, accounts, dnssec })
+  const addresses = await deployTestEns({ web3, accounts, dnssec, exponential })
   console.log(addresses)
   const {
     ensAddress,
     oldResolverAddresses,
     oldContentResolverAddresses,
-    labels
+    labels,
+    nameWrapperAddress
   } = addresses
   const envLocalFile = './.env.local'
   fs.writeFileSync('./cypress.env.json', JSON.stringify(addresses))
@@ -61,7 +63,11 @@ async function init() {
   fs.appendFileSync(envLocalFile, '\n')
   fs.appendFileSync(
     envLocalFile,
-    `REACT_APP_OLD_CONTENT_RESOLVERS=${oldContentResolverAddresses.join(',')}`
+    `REACT_APP_OLD_CONTENT_RESOLVERS=${oldContentResolverAddresses.join(',')}\n`
+  )
+  fs.appendFileSync(
+    envLocalFile,
+    `REACT_APP_NAME_WRAPPER_ADDRESS=${nameWrapperAddress}\n`
   )
   console.log(
     `Successfully wrote Old resolver address ${oldResolverAddresses.join(

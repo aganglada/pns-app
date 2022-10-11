@@ -1,21 +1,23 @@
-import { getNetworkId } from '@pnsdomains/ui/src/web3'
+import { validate } from '@ensdomains/ens-validation'
+import { normalize, hash } from '@ensdomains/eth-ens-namehash'
 import {
   emptyAddress as _emptyAddress,
-  validateName as _validateName,
-  parseSearchTerm as _parseSearchTerm,
   getEnsStartBlock as _ensStartBlock,
-  isLabelValid as _isLabelValid,
-  isEncodedLabelhash
-} from '@pnsdomains/ui/src/utils/index'
-import { validate } from '@ensdomains/ens-validation'
-import { normalize } from '@ensdomains/eth-ens-namehash'
-import { CID } from 'multiformats/esm/src/cid'
-
-import getENS from '../apollo/mutations/ens'
+  getNetworkId,
+  isEncodedLabelhash,
+  isLabelValid as _isLabelValid
+} from '@pnsdomains/ui'
 import * as jsSHA3 from 'js-sha3'
-import { saveName } from '../api/labels'
+import { throttle } from 'lodash'
 import { useEffect, useRef } from 'react'
+import { saveName } from '../api/labels'
+import getENS from '../apollo/mutations/ens'
+import { globalErrorReactive } from '../apollo/reactiveVars'
 import { EMPTY_ADDRESS } from './records'
+import {
+  validateName as _validateName,
+  parseSearchTerm as _parseSearchTerm
+} from './validateName'
 
 // From https://github.com/0xProject/0x-monorepo/blob/development/packages/utils/src/address_utils.ts
 
@@ -123,7 +125,6 @@ export const parseSearchTerm = async term => {
   } catch (e) {
     return 'invalid'
   }
-  console.log('** parseSearchTerm', { ens })
   const address = await ens.getOwner(tld)
   return _parseSearchTerm(term, true)
 }
@@ -197,7 +198,7 @@ export const aboutPageURL = () => {
 }
 
 export function isRecordEmpty(value) {
-  return value === emptyAddress || value === ''
+  return !value || value === emptyAddress || value === ''
 }
 
 export const hasValidReverseRecord = getReverseRecord =>
@@ -234,9 +235,48 @@ export function isOwnerOfParentDomain(domain, account) {
 }
 
 export function filterNormalised(data, name, nested = false) {
-  return data?.filter(data => {
+  try {
+    return data?.filter(data => {
+      const domain = nested ? data.domain : data
+      return domain[name] === normalize(domain[name])
+    })
+  } catch (e) {
+    if (e.message.match(/Illegal char/)) {
+      globalErrorReactive({
+        ...globalErrorReactive(),
+        invalidCharacter: 'Invalid character'
+      })
+      return
+    }
+  }
+}
+
+export function normaliseOrMark(data, name, nested = false) {
+  return data?.map(data => {
     const domain = nested ? data.domain : data
-    return domain[name] === normalize(domain[name])
+    let normalised
+    try {
+      if (domain?.id && !(hash(domain?.name) === domain?.id)) {
+        return { ...data, hasInvalidCharacter: true }
+      }
+      normalised = normalize(domain[name])
+    } catch (e) {
+      if (e.message.match(/Illegal char/)) {
+        return { ...data, hasInvalidCharacter: true }
+      }
+
+      globalErrorReactive({
+        ...globalErrorReactive(),
+        invalidCharacter: 'Name error: ' + e.message
+      })
+      return { ...data, hasInvalidCharacter: true }
+    }
+
+    if (normalised === domain[name]) {
+      return data
+    }
+
+    return { ...data, hasInvalidCharacter: true }
   })
 }
 
@@ -262,14 +302,14 @@ export function imageUrl(url, name, network) {
   console.warn('Unsupported avatar', network, name, url)
 }
 
-export function isCID(hash) {
-  try {
-    if (typeof hash === 'string') {
-      return Boolean(CID.parse(hash))
-    }
-
-    return Boolean(CID.asCID(hash))
-  } catch (e) {
-    return false
-  }
+export function asyncThrottle(func, wait) {
+  const throttled = throttle((resolve, reject, args) => {
+    func(...args)
+      .then(resolve)
+      .catch(reject)
+  }, wait)
+  return (...args) =>
+    new Promise((resolve, reject) => {
+      throttled(resolve, reject, args)
+    })
 }
